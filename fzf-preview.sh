@@ -24,9 +24,19 @@ else
 fi
 
 # Setup and run fzf
-export FZF_DEFAULT_COMMAND='fd -H -t file'
+if command -v fd > /dev/null; then
+    export FZF_DEFAULT_COMMAND='fd -H -t file'
+fi
 preview_arg="$(dirname "$0")/fzf-file2img.sh {} $image_preview $tmp_img $tmp_ueberzug_file"
-fzf --preview="$preview_arg" --multi --bind 'enter:become(rifle {+})'
+if command -v rifle > /dev/null; then  # ranger's file opener
+    fzf --preview="$preview_arg" --multi --bind 'enter:become(rifle {+})'
+elif command -v open > /dev/null; then
+    fzf --preview="$preview_arg" --multi --bind 'enter:become(open {+})'
+elif command -v xdg-open > /dev/null; then
+    fzf --preview="$preview_arg" --multi --bind 'enter:become(xdg-open {+})'
+else
+    fzf --preview="$preview_arg"
+fi
 
 # Clear last image and remove temporary files
 if command -v ueberzug > /dev/null; then
