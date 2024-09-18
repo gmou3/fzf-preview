@@ -1,14 +1,17 @@
 #!/bin/bash
 
+tmp_img=$(mktemp /tmp/fzf-preview.XXXXXXXXXX)
+tmp_ueberzug_file=""
+
 # Choose image previewer
 if command -v ueberzug > /dev/null; then
     image_preview="ueberzug_preview"
-    # Initialize ueberzug (listen to /tmp/fzf-ueberzug)
-    touch /tmp/fzf-ueberzug
+    # Initialize ueberzug (listen to /tmp/fzf-ueberzug.XXXXXXXXXX)
+    tmp_ueberzug_file=$(mktemp /tmp/fzf-ueberzug.XXXXXXXXXX)
     if command -v ueberzugpp > /dev/null; then
-        tail -f --pid=$$ /tmp/fzf-ueberzug 2> /dev/null | ueberzugpp layer --silent &
+        tail -f --pid=$$ $tmp_ueberzug_file 2> /dev/null | ueberzugpp layer --silent &
     else
-        tail -f --pid=$$ /tmp/fzf-ueberzug 2> /dev/null | ueberzug layer --silent &
+        tail -f --pid=$$ $tmp_ueberzug_file 2> /dev/null | ueberzug layer --silent &
     fi
 elif [[ $KITTY_WINDOW_ID ]]; then
     image_preview="kitty_preview"
@@ -22,11 +25,11 @@ fi
 
 # Setup and run fzf
 export FZF_DEFAULT_COMMAND='fd -H -t file'
-preview_arg="$(dirname "$0")/fzf-file2img.sh {} $image_preview"
-fzf --preview="$preview_arg"  # --multi --bind 'enter:become(rifle {+})'
+preview_arg="$(dirname "$0")/fzf-file2img.sh {} $image_preview $tmp_img $tmp_ueberzug_file"
+fzf --preview="$preview_arg" --multi --bind 'enter:become(rifle {+})'
 
 # Clear last image and remove temporary files
 if command -v ueberzug > /dev/null; then
-    echo '{"action": "remove", "identifier": "fzf"}' >> /tmp/fzf-ueberzug
+    echo '{"action": "remove", "identifier": "fzf"}' >> $tmp_ueberzug_file
 fi
-rm -f "/tmp/fzf-preview" "/tmp/fzf-preview.jpg" "/tmp/fzf-ueberzug"
+rm -f $tmp_img $tmp_ueberzug_file

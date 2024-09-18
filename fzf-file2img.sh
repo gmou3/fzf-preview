@@ -1,32 +1,33 @@
 #!/bin/bash
 
-file=$1
-image_preview=$2
-tmp_file="/tmp/fzf-preview"
-img=""  # image path
+file=$1               # fzf search result
+image_preview=$2      # preview method
+tmp_img=$3            # location to place extracted image from file
+tmp_ueberzug_file=$4  # file to send ueberzug commands
+img=""                # location of final image
 
 # File type handling
 type=$(file --dereference -b --mime-type "$file")
 if [ -d "$file" ]; then  # directory
     ls --color "$file"
 elif [ "$type" == "image/vnd.djvu" ]; then
-    ddjvu -format=tiff -page=1 "$file" "$tmp_file"
-    img="$tmp_file"
+    ddjvu -format=tiff -page=1 "$file" "$tmp_img"
+    img="$tmp_img"
 elif [ "${type:0:5}" == "image" ]; then
     img="$file"
 elif [ "${type:0:5}" == "audio" ]; then
-    ffmpeg -y -i "$file" -an -c:v copy "$tmp_file.jpg" 2> /dev/null
-    [ $? == 0 ] && img="$tmp_file.jpg"
+    ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg" 2> /dev/null
+    [ $? == 0 ] && mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
     [ $? != 0 ] && exiftool "$file"
 elif [ "${type:0:5}" == "video" ]; then
-    ffmpegthumbnailer -i "$file" -o "$tmp_file" -s 1080 -m 2> /dev/null
-    img="$tmp_file"
+    ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 0 -m 2> /dev/null
+    img="$tmp_img"
 elif [ "$type" == "application/pdf" ]; then
-    pdftoppm -singlefile -jpeg "$file" "$tmp_file" 2> /dev/null
-    img="$tmp_file.jpg"
+    pdftoppm -singlefile -jpeg "$file" "$tmp_img" 2> /dev/null
+    mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
 elif [[ $type == *"epub"* ]]; then
-    epub-thumbnailer "$file" "$tmp_file" "1080"
-    img="$tmp_file"
+    epub-thumbnailer "$file" "$tmp_img" "1440"
+    img="$tmp_img"
 elif [ "${type:0:4}" == "text" ]; then
     if command -v bat > /dev/null; then
         bat --color always "$file"
@@ -44,7 +45,7 @@ kitty_preview () {
 }
 
 ueberzug_preview () {
-    echo '{"action": "add", "identifier": "fzf", "x": '$FZF_PREVIEW_LEFT', "y": '$FZF_PREVIEW_TOP', "max_width": '$FZF_PREVIEW_COLUMNS', "max_height": '$FZF_PREVIEW_LINES', "path": '"\"$1\""'}' >> /tmp/fzf-ueberzug
+    echo '{"action": "add", "identifier": "fzf", "x": '$FZF_PREVIEW_LEFT', "y": '$FZF_PREVIEW_TOP', "max_width": '$FZF_PREVIEW_COLUMNS', "max_height": '$FZF_PREVIEW_LINES', "path": '"\"$1\""'}' >> $tmp_ueberzug_file
 }
 
 chafa_preview () {
@@ -72,7 +73,7 @@ no_image_preview () {
 if [ -n "$img" ]; then
     $image_preview "$img"
 elif command -v ueberzug > /dev/null; then
-    echo '{"action": "remove", "identifier": "fzf"}' >> /tmp/fzf-ueberzug
+    echo '{"action": "remove", "identifier": "fzf"}' >> $tmp_ueberzug_file
 elif [[ $KITTY_WINDOW_ID ]]; then
     kitty icat --clear
 fi
