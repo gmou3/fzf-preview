@@ -25,7 +25,7 @@ elif [ "$type" == "application/pdf" ]; then
     pdftoppm -singlefile -jpeg "$file" "$tmp_file" 2> /dev/null
     img="$tmp_file.jpg"
 elif [[ $type == *"epub"* ]]; then
-    epub-thumbnailer "$file" "$tmp_file" "1440"
+    epub-thumbnailer "$file" "$tmp_file" "1080"
     img="$tmp_file"
 elif [ "${type:0:4}" == "text" ]; then
     if command -v bat > /dev/null; then

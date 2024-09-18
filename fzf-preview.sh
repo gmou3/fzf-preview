@@ -5,7 +5,7 @@ if command -v ueberzug > /dev/null; then
     image_preview="ueberzug_preview"
     # Initialize ueberzug (listen to /tmp/fzf-ueberzug)
     echo "" > /tmp/fzf-ueberzug
-    tail -f /tmp/fzf-ueberzug 2> /dev/null | ueberzug layer --silent &
+    tail -f --pid=$$ /tmp/fzf-ueberzug 2> /dev/null | ueberzug layer --silent &
 elif [[ $KITTY_WINDOW_ID ]]; then
     image_preview="kitty_preview"
 elif command -v chafa > /dev/null; then
@@ -17,9 +17,9 @@ else
 fi
 
 # Setup and run fzf
-export FZF_DEFAULT_COMMAND='fd -H -t file'
+# export FZF_DEFAULT_COMMAND='fd -H -t file'
 preview_arg="$(dirname "$0")/fzf-file2img.sh {} $image_preview"
-fzf --preview="$preview_arg" --multi --bind 'enter:become(rifle {+})'
+fzf --preview="$preview_arg"  # --multi --bind 'enter:become(rifle {+})'
 
 # Clear last image and remove temporary files
 if command -v ueberzug > /dev/null; then
