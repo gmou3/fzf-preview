@@ -66,7 +66,7 @@ catimg_preview () {
 }
 
 no_image_preview () {
-    file "$1" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
+    file "$file" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
 }
 
 # Show image

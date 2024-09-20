@@ -27,15 +27,17 @@ fi
 if command -v fd > /dev/null; then
     export FZF_DEFAULT_COMMAND='fd -H -t file'
 fi
-preview_arg="$(dirname "$0")/fzf-file2img.sh {} $image_preview $tmp_img $tmp_ueberzug_file"
+# Set preview command and refresh on terminal resize
+export FZF_DEFAULT_OPTS="--bind resize:refresh-preview \
+--preview='$(dirname "$0")/fzf-file2img.sh {} $image_preview $tmp_img $tmp_ueberzug_file'"
 if command -v rifle > /dev/null; then  # ranger's file opener
-    fzf --preview="$preview_arg" --multi --bind 'enter:become(rifle {+})'
+    fzf --multi --bind 'enter:become(rifle {+})'
 elif command -v open > /dev/null; then
-    fzf --preview="$preview_arg" --multi --bind 'enter:become(open {+})'
+    fzf --multi --bind 'enter:become(open {+})'
 elif command -v xdg-open > /dev/null; then
-    fzf --preview="$preview_arg" --multi --bind 'enter:become(xdg-open {+})'
+    fzf --multi --bind 'enter:become(xdg-open {+})'
 else
-    fzf --preview="$preview_arg"
+    fzf
 fi
 
 # Clear last image and remove temporary files
