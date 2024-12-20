@@ -1,10 +1,10 @@
 #!/bin/bash
 
-file=$1               # fzf search result
-image_preview=$2      # preview method
-tmp_img=$3            # location to place extracted image from file
-tmp_ueberzug_file=$4  # file to send ueberzug commands
-img=""                # location of final image
+file=$1                               # fzf search result
+image_preview=${2:-no_image_preview}  # preview method
+tmp_img="${3:-/tmp/fzf-preview}"      # location to place extracted image from file
+tmp_ueberzug_file=$4                  # file to send ueberzug commands
+img=""                                # location of final image
 
 # File type handling
 type=$(file --dereference -b --mime-type "$file")

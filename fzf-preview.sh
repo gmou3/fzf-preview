@@ -23,9 +23,18 @@ else
     image_preview="no_image_preview"
 fi
 
+cleanup () {
+    # Clear last image and remove temporary files
+    if command -v ueberzug > /dev/null; then
+        echo '{"action": "remove", "identifier": "fzf"}' >> $tmp_ueberzug_file
+    fi
+    rm -f $tmp_img $tmp_ueberzug_file
+}
+trap cleanup HUP
+
 # Setup and run fzf
 if command -v fd > /dev/null; then
-    export FZF_DEFAULT_COMMAND='fd -H -t file'
+    export FZF_DEFAULT_COMMAND='fd -H'
 fi
 # Set preview command and refresh on terminal resize
 export FZF_DEFAULT_OPTS="--bind resize:refresh-preview \
@@ -40,8 +49,4 @@ else
     fzf
 fi
 
-# Clear last image and remove temporary files
-if command -v ueberzug > /dev/null; then
-    echo '{"action": "remove", "identifier": "fzf"}' >> $tmp_ueberzug_file
-fi
-rm -f $tmp_img $tmp_ueberzug_file
+cleanup
