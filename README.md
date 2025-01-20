@@ -3,12 +3,12 @@
 
 # Usage
 Run the bash script `fzf-preview.sh`. <br />
-This chooses an image viewer and calls `fzf` with preview script `fzf-file2img.sh`.
+This chooses an image viewer and calls `fzf` with preview script `fzf-file2preview.sh`.
 
 # Dependencies
 `fzf`: [junegunn/fzf](https://github.com/junegunn/fzf)
 
-## Image viewer: <br />
+## Image viewer
 `ueberzugpp`: [jstkdng/ueberzugpp](https://github.com/jstkdng/ueberzugpp) (suggested)
 
 Alternatives: <br />

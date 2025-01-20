@@ -32,13 +32,17 @@ cleanup () {
 }
 trap cleanup HUP
 
-# Setup and run fzf
+# Set fzf command
 if command -v fd > /dev/null; then
-    export FZF_DEFAULT_COMMAND='fd -H'
+    export FZF_DEFAULT_COMMAND='fd -H --type file'
 fi
-# Set preview command and refresh on terminal resize
-export FZF_DEFAULT_OPTS="--bind resize:refresh-preview \
---preview='$(dirname "$0")/fzf-file2img.sh {} $image_preview $tmp_img $tmp_ueberzug_file'"
+
+# Set fzf default options (preview command, refresh on terminal resize, show header
+export FZF_DEFAULT_OPTS="\
+--preview '$(dirname "$0")/fzf-file2preview.sh {} $image_preview $tmp_img $tmp_ueberzug_file'
+--bind 'resize:refresh-preview' --bind 'focus:transform-header:file --brief {}'"
+
+# Run fzf and bind to a file opener
 if command -v rifle > /dev/null; then  # ranger's file opener
     fzf --multi --bind 'enter:become(rifle {+})'
 elif command -v open > /dev/null; then
