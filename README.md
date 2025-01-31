@@ -17,3 +17,10 @@ Alternatives: <br />
 `catimg`: [posva/catimg](https://github.com/posva/catimg)
 
 Also works within a `kitty` terminal employing `kitty icat`.
+
+## File-to-image converters
+audio: `ffmpeg`, `exiftool` <br />
+djvu: `ddjvu` <br />
+epub: `epub-thumbnailer` <br />
+pdf: `pdftoppm` <br />
+video: `ffmpegthumbnailer`

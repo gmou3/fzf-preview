@@ -37,7 +37,7 @@ if command -v fd > /dev/null; then
     export FZF_DEFAULT_COMMAND='fd -H --type file'
 fi
 
-# Set fzf default options (preview command, refresh on terminal resize, show header
+# Set fzf default options (preview command, refresh on terminal resize, show header)
 export FZF_DEFAULT_OPTS="\
 --preview '$(dirname "$0")/fzf-file2preview.sh {} $image_preview $tmp_img $tmp_ueberzug_file'
 --bind 'resize:refresh-preview' --bind 'focus:transform-header:file --brief {}'"
