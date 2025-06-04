@@ -6,6 +6,22 @@ tmp_img="${3:-/tmp/fzf-preview}"        # location to place extracted image from
 tmp_ueberzug_file="$4"                  # file to send ueberzug commands
 img=""                                  # location of final image
 
+# Error handling function
+cmd_e() {
+    if "$@" 2>/dev/null; then
+        return 0
+    else
+        if ! command -v "$1" > /dev/null; then
+            {
+                echo "Preview method unavailable: install $1"
+                echo ""
+                file "$file"
+            } | fold -sw $((FZF_PREVIEW_COLUMNS-1))
+        fi
+        return 1
+    fi
+}
+
 # File type handling
 type=$(file --dereference -b --mime-type "$file")
 
@@ -17,46 +33,52 @@ if [ -d "$file" ]; then
 elif [[ "${type:0:5}" == "image" && "$type" != *"djvu"* ]]; then
     img="$file"
 elif [ "${type:0:5}" == "audio" ]; then
-    ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg" 2> /dev/null
-    [ $? == 0 ] && mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
-    [ $? != 0 ] && exiftool "$file"
+    if cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
+        mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
+    else
+        cmd_e exiftool "$file"
+    fi
 elif [ "${type:0:5}" == "video" ]; then
-    ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 0 -m 2> /dev/null
-    img="$tmp_img"
+    if cmd_e ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 0 -m; then
+        img="$tmp_img"
+    fi
 
 # Documents
 elif [ "$type" == "application/pdf" ]; then
-    pdftoppm -singlefile -jpeg "$file" "$tmp_img" 2> /dev/null
-    mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
+    if cmd_e pdftoppm -singlefile -jpeg "$file" "$tmp_img"; then
+        mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
+    fi
 elif [ "$type" == "image/vnd.djvu" ]; then
-    ddjvu -format=tiff -page=1 "$file" "$tmp_img"
-    img="$tmp_img"
+    if cmd_e ddjvu -format=tiff -page=1 "$file" "$tmp_img"; then
+        img="$tmp_img"
+    fi
 elif [[ "$type" == *"officedocument.wordprocessingml.document"* ]]; then
-    docx2txt "$file" -
+    cmd_e docx2txt "$file" -
 elif [[ "$type" == *"vnd.oasis.opendocument.text"* ]]; then
-    odt2txt "$file"
+    cmd_e odt2txt "$file"
 elif [ "$type" == "message/rfc822" ]; then  # email (.eml)
-    mu view "$file"
+    cmd_e mu view "$file"
 elif [[ "$type" == *"epub"* ]]; then
-    epub-thumbnailer "$file" "$tmp_img" "1440"
-    img="$tmp_img"
+    if cmd_e epub-thumbnailer "$file" "$tmp_img" "1440"; then
+        img="$tmp_img"
+    fi
 
 # Compressed files
 elif [ "$type" == "application/zip" ]; then
-    unzip -l "$file"
+    cmd_e unzip -l "$file"
 elif [ "$type" == "application/gzip" ]; then
-    zcat "$file"
+    cmd_e zcat "$file"
 elif [ "$type" == "application/x-bzip2" ]; then
-    bzcat "$file"
+    cmd_e bzcat "$file"
 elif [ "$type" == "application/x-xz" ]; then
-    xzcat "$file"
+    cmd_e xzcat "$file"
 
 # Binaries
 elif [[ "$type" == "application/x-executable" || \
         "$type" == "application/x-pie-executable" || \
         "$type" == "application/x-sharedlib" || \
         "$type" == "application/x-object" ]]; then
-    readelf -a "$file"
+    cmd_e readelf -a "$file"
 
 # Text
 elif [ "${type:0:4}" == "text" ]; then
