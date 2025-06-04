@@ -8,6 +8,9 @@ This chooses an image viewer and calls `fzf` with preview script `fzf-file2previ
 # Dependencies
 `fzf`: [junegunn/fzf](https://github.com/junegunn/fzf)
 
+This is the only critical dependency. The rest expand functionality and can be
+added as needed.
+
 ## Image viewer
 `ueberzugpp`: [jstkdng/ueberzugpp](https://github.com/jstkdng/ueberzugpp) (suggested)
 
@@ -18,9 +21,22 @@ Alternatives: <br />
 
 Also works within a `kitty` terminal employing `kitty icat`.
 
-## File-to-image converters
+## File-to-preview converters
+
+### Media
 audio: `ffmpeg`, `exiftool` <br />
-djvu: `ddjvu` <br />
-epub: `epub-thumbnailer` <br />
-pdf: `pdftoppm` <br />
 video: `ffmpegthumbnailer`
+
+### Documents
+djvu: `ddjvu` <br />
+docx: `docx2txt` <br />
+eml (email): `mu` <br />
+epub: `epub-thumbnailer` <br />
+odt: `odt2txt` <br />
+pdf: `pdftoppm`
+
+### Compressed files
+bz2: `bzcat` <br />
+gz: `unzip` <br />
+xz: `xzcat` <br />
+zip: `zcat`

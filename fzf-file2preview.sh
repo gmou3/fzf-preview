@@ -1,19 +1,20 @@
 #!/bin/bash
 
-file=$1                               # fzf search result
-image_preview=${2:-no_image_preview}  # preview method
-tmp_img="${3:-/tmp/fzf-preview}"      # location to place extracted image from file
-tmp_ueberzug_file=$4                  # file to send ueberzug commands
-img=""                                # location of final image
+file="$1"                               # fzf search result
+image_preview="${2:-no_image_preview}"  # preview method
+tmp_img="${3:-/tmp/fzf-preview}"        # location to place extracted image from file
+tmp_ueberzug_file="$4"                  # file to send ueberzug commands
+img=""                                  # location of final image
 
 # File type handling
 type=$(file --dereference -b --mime-type "$file")
-if [ -d "$file" ]; then  # directory
+
+# Directory
+if [ -d "$file" ]; then
     ls --color "$file"
-elif [ "$type" == "image/vnd.djvu" ]; then
-    ddjvu -format=tiff -page=1 "$file" "$tmp_img"
-    img="$tmp_img"
-elif [ "${type:0:5}" == "image" ]; then
+
+# Media
+elif [[ "${type:0:5}" == "image" && "$type" != *"djvu"* ]]; then
     img="$file"
 elif [ "${type:0:5}" == "audio" ]; then
     ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg" 2> /dev/null
@@ -22,18 +23,50 @@ elif [ "${type:0:5}" == "audio" ]; then
 elif [ "${type:0:5}" == "video" ]; then
     ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 0 -m 2> /dev/null
     img="$tmp_img"
+
+# Documents
 elif [ "$type" == "application/pdf" ]; then
     pdftoppm -singlefile -jpeg "$file" "$tmp_img" 2> /dev/null
     mv "$tmp_img.jpg" "$tmp_img" && img="$tmp_img"
-elif [[ $type == *"epub"* ]]; then
+elif [ "$type" == "image/vnd.djvu" ]; then
+    ddjvu -format=tiff -page=1 "$file" "$tmp_img"
+    img="$tmp_img"
+elif [[ "$type" == *"officedocument.wordprocessingml.document"* ]]; then
+    docx2txt "$file" -
+elif [[ "$type" == *"vnd.oasis.opendocument.text"* ]]; then
+    odt2txt "$file"
+elif [ "$type" == "message/rfc822" ]; then  # email (.eml)
+    mu view "$file"
+elif [[ "$type" == *"epub"* ]]; then
     epub-thumbnailer "$file" "$tmp_img" "1440"
     img="$tmp_img"
+
+# Compressed files
+elif [ "$type" == "application/zip" ]; then
+    unzip -l "$file"
+elif [ "$type" == "application/gzip" ]; then
+    zcat "$file"
+elif [ "$type" == "application/x-bzip2" ]; then
+    bzcat "$file"
+elif [ "$type" == "application/x-xz" ]; then
+    xzcat "$file"
+
+# Binaries
+elif [[ "$type" == "application/x-executable" || \
+        "$type" == "application/x-pie-executable" || \
+        "$type" == "application/x-sharedlib" || \
+        "$type" == "application/x-object" ]]; then
+    readelf -a "$file"
+
+# Text
 elif [ "${type:0:4}" == "text" ]; then
     if command -v bat > /dev/null; then
         bat --color always "$file"
     else
         cat "$file"
     fi
+
+# Generic
 else
     file "$file" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
 fi
