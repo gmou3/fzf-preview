@@ -32,6 +32,7 @@ djvu: `ddjvu` <br />
 docx: `docx2txt` <br />
 eml (email): `mu` <br />
 epub: `epub-thumbnailer` <br />
+markdown: `glow` <br />
 odt: `odt2txt` <br />
 pdf: `pdftoppm`
 

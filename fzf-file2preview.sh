@@ -82,7 +82,9 @@ elif [[ "$type" == "application/x-executable" || \
 
 # Text
 elif [ "${type:0:4}" == "text" ]; then
-    if command -v bat > /dev/null; then
+    if [[ "${file: -3}" == ".md" ]]; then
+        cmd_e glow --width $((FZF_PREVIEW_COLUMNS-1)) "$file"
+    elif command -v bat > /dev/null; then
         bat --color always "$file"
     else
         cat "$file"
