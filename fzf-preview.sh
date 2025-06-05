@@ -23,14 +23,26 @@ else
     image_preview="no_image_preview"
 fi
 
+# Cache directory setup
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    cache_dir="$HOME/Library/Caches/fzf-preview"
+else
+    cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/fzf-preview"
+fi
+mkdir -p "$cache_dir"
+
 cleanup () {
-    # Clear last image and remove temporary files
+    # Clear last image
     if command -v ueberzug > /dev/null; then
-        echo '{"action": "remove", "identifier": "fzf"}' >> $tmp_ueberzug_file
+        echo '{"action": "remove", "identifier": "fzf"}' >> "$tmp_ueberzug_file"
     fi
-    rm -f $tmp_img $tmp_ueberzug_file
+    # Clean up old cache files
+    ls -1t "$cache_dir" | tail -n +201 | xargs -I {} rm "${cache_dir}/{}"
+    # Remove temporary files
+    [[ -n "$tmp_img" ]] && rm -f "$tmp_img"
+    [[ -n "$tmp_ueberzug_file" ]] && rm -f "$tmp_ueberzug_file"
 }
-trap cleanup HUP
+trap cleanup HUP INT TERM QUIT EXIT
 
 # Set fzf command
 if command -v fd > /dev/null; then
@@ -39,8 +51,9 @@ fi
 
 # Set fzf default options (preview command, refresh on terminal resize, show header)
 export FZF_DEFAULT_OPTS="\
---preview '$(dirname "$0")/fzf-file2preview.sh {} $image_preview $tmp_img $tmp_ueberzug_file'
---bind 'resize:refresh-preview' --bind 'focus:transform-header:file --brief {}'"
+--preview '$(dirname "$0")/fzf-file2preview.sh {} "$image_preview" "$cache_dir" \
+"$tmp_img" "$tmp_ueberzug_file"' --bind 'resize:refresh-preview' \
+--bind 'focus:transform-header:file --brief {}'"
 
 # Run fzf and bind to a file opener
 if command -v rifle > /dev/null; then  # ranger's file opener
@@ -52,5 +65,3 @@ elif command -v xdg-open > /dev/null; then
 else
     fzf
 fi
-
-cleanup
