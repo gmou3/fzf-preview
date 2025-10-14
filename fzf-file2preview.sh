@@ -37,14 +37,14 @@ cache_image() {
     local cache_file="$cache_dir/$(get_cache_key "$file")"
     
     if [ -f "$src_img" ]; then
-        cp "$src_img" "$cache_file" 2>/dev/null
+        cp "$src_img" "$cache_file" 2> /dev/null
         echo "$cache_file"
     fi
 }
 
 # Error handling function
 cmd_e() {
-    if "$@" 2>/dev/null; then
+    if "$@" 2> /dev/null; then
         return 0
     else
         if ! command -v "$1" > /dev/null; then
@@ -61,41 +61,41 @@ cmd_e() {
 # File type handling
 type=$(file --dereference -b --mime-type "$file")
 
+# Check cache for file
+if cached_img=$(get_cached_image); then
+    img="$cached_img"
+
 # Directory
-if [ -d "$file" ]; then
+elif [ -d "$file" ]; then
     ls "$file"
 
 # Media
 elif [[ "${type:0:5}" == "image" && "$type" != *"djvu"* ]]; then
-    img="$file"
+    if magick "$file" -auto-orient -resize x1080 "$tmp_img" 2> /dev/null; then
+        img=$(cache_image "$tmp_img")
+    else
+        img="$file"
+    fi
 elif [ "${type:0:5}" == "audio" ]; then
-    if cached_img=$(get_cached_image); then
-        img="$cached_img"
-    elif cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
+    if cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
         mv "$tmp_img.jpg" "$tmp_img" 
         img=$(cache_image "$tmp_img")
     else
         cmd_e exiftool "$file"
     fi
 elif [ "${type:0:5}" == "video" ]; then
-    if cached_img=$(get_cached_image); then
-        img="$cached_img"
-    elif cmd_e ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 1080 -m; then
+    if cmd_e ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 1080 -m; then
         img=$(cache_image "$tmp_img")
     fi
 
 # Documents
 elif [ "$type" == "application/pdf" ]; then
-    if cached_img=$(get_cached_image); then
-        img="$cached_img"
-    elif cmd_e pdftoppm -singlefile -jpeg "$file" "$tmp_img"; then
+    if cmd_e pdftoppm -singlefile -jpeg "$file" "$tmp_img"; then
         mv "$tmp_img.jpg" "$tmp_img"
         img=$(cache_image "$tmp_img")
     fi
 elif [ "$type" == "image/vnd.djvu" ]; then  
-    if cached_img=$(get_cached_image); then
-        img="$cached_img"
-    elif cmd_e ddjvu -format=tiff -page=1 "$file" "$tmp_img"; then
+    if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$file" "$tmp_img"; then
         img=$(cache_image "$tmp_img")
     fi
 elif [[ "$type" == *"officedocument.wordprocessingml.document"* ]]; then
@@ -105,9 +105,7 @@ elif [[ "$type" == *"vnd.oasis.opendocument.text"* ]]; then
 elif [ "$type" == "message/rfc822" ]; then  # email (.eml)
     cmd_e mu view "$file"
 elif [[ "$type" == *"epub"* ]]; then
-    if cached_img=$(get_cached_image); then
-        img="$cached_img"
-    elif cmd_e epub-thumbnailer "$file" "$tmp_img" "1440"; then
+    if cmd_e epub-thumbnailer "$file" "$tmp_img" "1080"; then
         img=$(cache_image "$tmp_img")
     fi
 
