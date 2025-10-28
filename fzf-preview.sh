@@ -1,17 +1,19 @@
 #!/bin/bash
 
 tmp_img=$(mktemp /tmp/fzf-preview.XXXXXXXXXX)
-tmp_ueberzug_file=""
+tmp_ueberzug_fifo=""
 
 # Choose image previewer
 if command -v ueberzug > /dev/null; then
     image_preview="ueberzug_preview"
     # Initialize ueberzug (listen to /tmp/fzf-ueberzug.XXXXXXXXXX)
-    tmp_ueberzug_file=$(mktemp /tmp/fzf-ueberzug.XXXXXXXXXX)
+    tmp_ueberzug_fifo=$(mktemp /tmp/fzf-ueberzug.XXXXXXXXXX)
+    rm -f "$tmp_ueberzug_fifo"
+    mkfifo "$tmp_ueberzug_fifo"
     if command -v ueberzugpp > /dev/null; then
-        tail -f --pid=$$ $tmp_ueberzug_file 2> /dev/null | ueberzugpp layer --silent &
+        tail -f --pid=$$ "$tmp_ueberzug_fifo" 2> /dev/null | ueberzugpp layer --silent &
     else
-        tail -f --pid=$$ $tmp_ueberzug_file 2> /dev/null | ueberzug layer --silent &
+        tail -f --pid=$$ "$tmp_ueberzug_fifo" 2> /dev/null | ueberzug layer --silent &
     fi
 elif [[ $KITTY_WINDOW_ID ]]; then
     image_preview="kitty_preview"
@@ -34,13 +36,13 @@ mkdir -p "$cache_dir"
 cleanup () {
     # Clear last image
     if command -v ueberzug > /dev/null; then
-        echo '{"action": "remove", "identifier": "fzf"}' >> "$tmp_ueberzug_file"
+        echo '{"action": "remove", "identifier": "fzf"}' >> "$tmp_ueberzug_fifo"
     fi
     # Clean up old cache files
     ls -1t "$cache_dir" | tail -n +201 | xargs -I {} rm "${cache_dir}/{}"
     # Remove temporary files
     [[ -n "$tmp_img" ]] && rm -f "$tmp_img"
-    [[ -n "$tmp_ueberzug_file" ]] && rm -f "$tmp_ueberzug_file"
+    [[ -n "$tmp_ueberzug_fifo" ]] && rm -f "$tmp_ueberzug_fifo"
 }
 trap cleanup HUP INT TERM QUIT EXIT
 
@@ -52,7 +54,7 @@ fi
 # Set fzf default options (preview command, refresh on terminal resize, show header)
 export FZF_DEFAULT_OPTS="\
 --preview '$(dirname "$0")/fzf-file2preview.sh {} "$image_preview" "$cache_dir" \
-"$tmp_img" "$tmp_ueberzug_file"' --bind 'resize:refresh-preview' \
+"$tmp_img" "$tmp_ueberzug_fifo"' --bind 'resize:refresh-preview' \
 --bind 'focus:transform-header:file --brief {}'"
 
 # Run fzf and bind to a file opener

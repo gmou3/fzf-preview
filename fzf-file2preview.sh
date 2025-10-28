@@ -4,7 +4,7 @@ file="$1"                               # fzf search result
 image_preview="${2:-no_image_preview}"  # preview method
 cache_dir="$3"                          # cache directory
 tmp_img="${4:-/tmp/fzf-preview}"        # location to place extracted image from file
-tmp_ueberzug_file="$5"                  # file to send ueberzug commands
+tmp_ueberzug_fifo="$5"                  # file to send ueberzug commands
 img=""                                  # location of final image
 
 # Generate cache key based on modification time and size
@@ -22,7 +22,7 @@ get_cache_key() {
 # Check if cached image exists
 get_cached_image() {
     local cache_file="$cache_dir/$(get_cache_key "$file")"
-    
+
     if [ -f "$cache_file" ]; then
         touch "$cache_file"
         echo "$cache_file"
@@ -35,7 +35,7 @@ get_cached_image() {
 cache_image() {
     local src_img="$1"
     local cache_file="$cache_dir/$(get_cache_key "$file")"
-    
+
     if [ -f "$src_img" ]; then
         cp "$src_img" "$cache_file" 2> /dev/null
         echo "$cache_file"
@@ -78,7 +78,7 @@ elif [[ "${type:0:5}" == "image" && "$type" != *"djvu"* ]]; then
     fi
 elif [ "${type:0:5}" == "audio" ]; then
     if cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
-        mv "$tmp_img.jpg" "$tmp_img" 
+        mv "$tmp_img.jpg" "$tmp_img"
         img=$(cache_image "$tmp_img")
     else
         cmd_e exiftool "$file"
@@ -94,7 +94,7 @@ elif [ "$type" == "application/pdf" ]; then
         mv "$tmp_img.jpg" "$tmp_img"
         img=$(cache_image "$tmp_img")
     fi
-elif [ "$type" == "image/vnd.djvu" ]; then  
+elif [ "$type" == "image/vnd.djvu" ]; then
     if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$file" "$tmp_img"; then
         img=$(cache_image "$tmp_img")
     fi
@@ -148,7 +148,7 @@ kitty_preview () {
 }
 
 ueberzug_preview () {
-    echo '{"action": "add", "identifier": "fzf", "x": '$FZF_PREVIEW_LEFT', "y": '$FZF_PREVIEW_TOP', "max_width": '$FZF_PREVIEW_COLUMNS', "max_height": '$FZF_PREVIEW_LINES', "path": '"\"$1\""'}' >> "$tmp_ueberzug_file"
+    echo '{"action": "add", "identifier": "fzf", "x": '$FZF_PREVIEW_LEFT', "y": '$FZF_PREVIEW_TOP', "max_width": '$FZF_PREVIEW_COLUMNS', "max_height": '$FZF_PREVIEW_LINES', "path": '"\"$1\""'}' >> "$tmp_ueberzug_fifo"
 }
 
 chafa_preview () {
@@ -176,7 +176,7 @@ no_image_preview () {
 if [ -n "$img" ]; then
     $image_preview "$img"
 elif command -v ueberzug > /dev/null; then
-    echo '{"action": "remove", "identifier": "fzf"}' >> "$tmp_ueberzug_file"
+    echo '{"action": "remove", "identifier": "fzf"}' >> "$tmp_ueberzug_fifo"
 elif [[ $KITTY_WINDOW_ID ]]; then
     kitty icat --clear
 fi
