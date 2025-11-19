@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 file="$1"                               # fzf search result
 image_preview="${2:-no_image_preview}"  # preview method
