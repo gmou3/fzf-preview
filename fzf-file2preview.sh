@@ -1,27 +1,37 @@
 #!/usr/bin/env bash
 
-file="$1"                               # fzf search result
-image_preview="${2:-no_image_preview}"  # preview method
-cache_dir="$3"                          # cache directory
-tmp_img="${4:-/tmp/fzf-preview}"        # location to place extracted image from file
-tmp_ueberzug_fifo="$5"                  # file to send ueberzug commands
-img=""                                  # location of final image
+FILE="$1"                               # fzf search result
+IMG_PREVIEW="${2:-generic_preview}"     # preview method
+CACHE_DIR="$3"                          # cache directory
+TMP_IMG="${4:-/tmp/fzf-preview}"        # location to place extracted image from file
+UEBERZUG_FIFO="$5"                      # file to send ueberzug commands
+IMG=""                                  # location of final image
+MAX_SIZE=$((100 * 1024 * 1024))         # size threshold (100 MB)
+
+# Cross-platform file size retrieval
+get_file_size () {
+    if stat --version >/dev/null 2>&1; then
+        stat -c%s "$1"  # GNU/Linux
+    else
+        stat -f%z "$1"  # macOS/BSD
+    fi
+}
 
 # Generate cache key based on modification time and size
 get_cache_key() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        local mtime=$(stat -f "%m" "$file")
-        local size=$(stat -f "%z" "$file")
+        local mtime=$(stat -f "%m" "$FILE")
+        local size=$(stat -f "%z" "$FILE")
     else
-        local mtime=$(stat -c "%Y" "$file")
-        local size=$(stat -c "%s" "$file")
+        local mtime=$(stat -c "%Y" "$FILE")
+        local size=$(stat -c "%s" "$FILE")
     fi
     echo "${mtime}_${size}"
 }
 
 # Check if cached image exists
 get_cached_image() {
-    local cache_file="$cache_dir/$(get_cache_key "$file")"
+    local cache_file="$CACHE_DIR/$(get_cache_key "$FILE")"
 
     if [ -f "$cache_file" ]; then
         touch "$cache_file"
@@ -34,7 +44,7 @@ get_cached_image() {
 # Save image to cache
 cache_image() {
     local src_img="$1"
-    local cache_file="$cache_dir/$(get_cache_key "$file")"
+    local cache_file="$CACHE_DIR/$(get_cache_key "$FILE")"
 
     if [ -f "$src_img" ]; then
         cp "$src_img" "$cache_file" 2> /dev/null
@@ -51,125 +61,12 @@ cmd_e() {
             {
                 echo "Preview method unavailable: install $1"
                 echo ""
-                file "$file"
-            } | fold -sw $((FZF_PREVIEW_COLUMNS-1))
+                file "$FILE"
+            } | fold -sw $((FZF_PREVIEW_COLUMNS - 1))
         fi
         return 1
     fi
 }
-
-# Check cache for file
-if cached_img=$(get_cached_image); then
-    img="$cached_img"
-
-# Directory
-elif [ -d "$file" ]; then
-    ls "$file"
-
-# File handling by type
-else
-    type=$(file --dereference -b --mime-type "$file")
-
-    case "$type" in
-        # Images (and DJVU)
-        image/*)
-            if [[ "$type" != "image/vnd.djvu" ]]; then
-                if magick "$file" -auto-orient -resize x1080 "$tmp_img" 2> /dev/null; then
-                    img=$(cache_image "$tmp_img")
-                else
-                    img="$file"
-                fi
-            else
-                # DJVU
-                if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$file" "$tmp_img"; then
-                    img=$(cache_image "$tmp_img")
-                fi
-            fi
-            ;;
-
-        # Audio
-        audio/*)
-            if cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
-                mv "$tmp_img.jpg" "$tmp_img"
-                img=$(cache_image "$tmp_img")
-            else
-                cmd_e exiftool "$file"
-            fi
-            ;;
-
-        # Video
-        video/*)
-            if cmd_e ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 1080 -m; then
-                img=$(cache_image "$tmp_img")
-            fi
-            ;;
-
-        # PDF
-        application/pdf)
-            if cmd_e pdftoppm -singlefile -jpeg "$file" "$tmp_img"; then
-                mv "$tmp_img.jpg" "$tmp_img"
-                img=$(cache_image "$tmp_img")
-            fi
-            ;;
-
-        # Office documents
-        *officedocument.wordprocessingml.document*)
-            cmd_e docx2txt "$file" -
-            ;;
-
-        # OpenDocument text
-        *vnd.oasis.opendocument.text*)
-            cmd_e odt2txt "$file"
-            ;;
-
-        # Email
-        message/rfc822)
-            cmd_e mu view "$file"
-            ;;
-
-        # EPUB
-        *epub*)
-            if cmd_e epub-thumbnailer "$file" "$tmp_img" "1080"; then
-                img=$(cache_image "$tmp_img")
-            fi
-            ;;
-
-        # Compressed files
-        application/zip)
-            cmd_e unzip -l "$file"
-            ;;
-        application/gzip)
-            cmd_e zcat "$file"
-            ;;
-        application/x-bzip2)
-            cmd_e bzcat "$file"
-            ;;
-        application/x-xz)
-            cmd_e xzcat "$file"
-            ;;
-
-        # Binaries
-        application/x-executable|application/x-pie-executable|application/x-sharedlib|application/x-object)
-            cmd_e readelf -a "$file"
-            ;;
-
-        # Text files
-        text/*)
-            if [[ "${file: -3}" == ".md" ]]; then
-                cmd_e glow --width $((FZF_PREVIEW_COLUMNS-1)) "$file"
-            elif command -v bat > /dev/null; then
-                bat --color always "$file"
-            else
-                cat "$file"
-            fi
-            ;;
-
-        # Generic fallback
-        *)
-            file "$file" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
-            ;;
-    esac
-fi
 
 # Definitions of preview methods
 kitty_preview () {
@@ -178,7 +75,7 @@ kitty_preview () {
 }
 
 ueberzug_preview() {
-	cat <<-EOF >> "$tmp_ueberzug_fifo"
+	cat <<-EOF >> "$UEBERZUG_FIFO"
 	{"action": "add", "identifier": "fzf", "x": $FZF_PREVIEW_LEFT, "y": $FZF_PREVIEW_TOP, "max_width": $FZF_PREVIEW_COLUMNS, "max_height": $FZF_PREVIEW_LINES, "path": "$1"}
 EOF
 }
@@ -200,15 +97,144 @@ catimg_preview () {
     fi
 }
 
-no_image_preview () {
-    file "$file" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
+generic_preview () {
+    file "$1" | fold -sw $((FZF_PREVIEW_COLUMNS - 1))
+    printf "\n"
 }
 
+# Check cache for file
+if cached_img=$(get_cached_image); then
+    IMG="$cached_img"
+
+# Directory
+elif [ -d "$FILE" ]; then
+    ls "$FILE"
+
+# File handling by type
+else
+    type=$(file --dereference -b --mime-type "$FILE")
+
+    case "$type" in
+        # Images (and DJVU)
+        image/*)
+            if [[ "$type" != "image/vnd.djvu" ]]; then
+                if magick "$FILE" -auto-orient -resize x1080 "$TMP_IMG" 2> /dev/null; then
+                    IMG=$(cache_image "$TMP_IMG")
+                else
+                    IMG="$FILE"
+                fi
+            else
+                # DJVU
+                if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$FILE" "$TMP_IMG"; then
+                    IMG=$(cache_image "$TMP_IMG")
+                fi
+            fi
+            ;;
+
+        # Audio
+        audio/*)
+            if cmd_e ffmpeg -y -i "$FILE" -an -c:v copy "$TMP_IMG.jpg"; then
+                mv "$TMP_IMG.jpg" "$TMP_IMG"
+                IMG=$(cache_image "$TMP_IMG")
+            else
+                cmd_e exiftool "$FILE"
+            fi
+            ;;
+
+        # Video
+        video/*)
+            if cmd_e ffmpegthumbnailer -i "$FILE" -o "$TMP_IMG" -s 1080 -m; then
+                IMG=$(cache_image "$TMP_IMG")
+            fi
+            ;;
+
+        # PDF
+        application/pdf)
+            if cmd_e pdftoppm -singlefile -jpeg "$FILE" "$TMP_IMG"; then
+                mv "$TMP_IMG.jpg" "$TMP_IMG"
+                IMG=$(cache_image "$TMP_IMG")
+            fi
+            ;;
+
+        # Office documents
+        *officedocument.wordprocessingml.document*)
+            cmd_e docx2txt "$FILE" -
+            ;;
+
+        # OpenDocument text
+        *vnd.oasis.opendocument.text*)
+            cmd_e odt2txt "$FILE"
+            ;;
+
+        # Email
+        message/rfc822)
+            cmd_e mu view "$FILE"
+            ;;
+
+        # EPUB
+        *epub*)
+            if cmd_e epub-thumbnailer "$FILE" "$TMP_IMG" "1080"; then
+                IMG=$(cache_image "$TMP_IMG")
+            fi
+            ;;
+
+        # Compressed files
+        application/zip)
+            generic_preview "$FILE"
+            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+                cmd_e unzip -l "$FILE" && printf "\n"
+                cmd_e unzip -p "$FILE"
+            fi
+            ;;
+        application/gzip)
+            generic_preview "$FILE"
+            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+                cmd_e zcat -l "$FILE" && printf "\n"
+                cmd_e zcat "$FILE"
+            fi
+            ;;
+        application/x-bzip2)
+            generic_preview "$FILE"
+            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+                cmd_e bzcat "$FILE"
+            fi
+            ;;
+        application/x-xz)
+            generic_preview "$FILE"
+            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+                cmd_e xz -l "$FILE" && printf "\n"
+                cmd_e xzcat "$FILE"
+            fi
+            ;;
+
+        # Binaries
+        application/x-executable|application/x-pie-executable|application/x-sharedlib|application/x-object)
+            cmd_e readelf -a "$FILE"
+            ;;
+
+        # Text files
+        text/*)
+            if [[ "${file: -3}" == ".md" ]]; then
+                cmd_e glow --width $((FZF_PREVIEW_COLUMNS - 1)) "$FILE"
+            elif command -v bat > /dev/null; then
+                bat --color always "$FILE"
+            else
+                cat "$FILE"
+            fi
+            ;;
+
+        # Generic fallback
+        *)
+            generic_preview "$FILE"
+            ;;
+    esac
+fi
+
 # Show image
-if [ -n "$img" ]; then
-    $image_preview "$img"
+if [ -n "$IMG" ]; then
+    $IMG_PREVIEW "$IMG"
 elif command -v ueberzug > /dev/null; then
-    echo '{"action": "remove", "identifier": "fzf"}' >> "$tmp_ueberzug_fifo"
+    echo '{"action": "remove", "identifier": "fzf"}' >> "$UEBERZUG_FIFO"
 elif [[ $KITTY_WINDOW_ID ]]; then
     kitty icat --clear
 fi
