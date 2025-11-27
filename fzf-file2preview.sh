@@ -58,9 +58,6 @@ cmd_e() {
     fi
 }
 
-# File type handling
-type=$(file --dereference -b --mime-type "$file")
-
 # Check cache for file
 if cached_img=$(get_cached_image); then
     img="$cached_img"
@@ -69,76 +66,109 @@ if cached_img=$(get_cached_image); then
 elif [ -d "$file" ]; then
     ls "$file"
 
-# Media
-elif [[ "${type:0:5}" == "image" && "$type" != *"djvu"* ]]; then
-    if magick "$file" -auto-orient -resize x1080 "$tmp_img" 2> /dev/null; then
-        img=$(cache_image "$tmp_img")
-    else
-        img="$file"
-    fi
-elif [ "${type:0:5}" == "audio" ]; then
-    if cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
-        mv "$tmp_img.jpg" "$tmp_img"
-        img=$(cache_image "$tmp_img")
-    else
-        cmd_e exiftool "$file"
-    fi
-elif [ "${type:0:5}" == "video" ]; then
-    if cmd_e ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 1080 -m; then
-        img=$(cache_image "$tmp_img")
-    fi
-
-# Documents
-elif [ "$type" == "application/pdf" ]; then
-    if cmd_e pdftoppm -singlefile -jpeg "$file" "$tmp_img"; then
-        mv "$tmp_img.jpg" "$tmp_img"
-        img=$(cache_image "$tmp_img")
-    fi
-elif [ "$type" == "image/vnd.djvu" ]; then
-    if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$file" "$tmp_img"; then
-        img=$(cache_image "$tmp_img")
-    fi
-elif [[ "$type" == *"officedocument.wordprocessingml.document"* ]]; then
-    cmd_e docx2txt "$file" -
-elif [[ "$type" == *"vnd.oasis.opendocument.text"* ]]; then
-    cmd_e odt2txt "$file"
-elif [ "$type" == "message/rfc822" ]; then  # email (.eml)
-    cmd_e mu view "$file"
-elif [[ "$type" == *"epub"* ]]; then
-    if cmd_e epub-thumbnailer "$file" "$tmp_img" "1080"; then
-        img=$(cache_image "$tmp_img")
-    fi
-
-# Compressed files
-elif [ "$type" == "application/zip" ]; then
-    cmd_e unzip -l "$file"
-elif [ "$type" == "application/gzip" ]; then
-    cmd_e zcat "$file"
-elif [ "$type" == "application/x-bzip2" ]; then
-    cmd_e bzcat "$file"
-elif [ "$type" == "application/x-xz" ]; then
-    cmd_e xzcat "$file"
-
-# Binaries
-elif [[ "$type" == "application/x-executable" || \
-        "$type" == "application/x-pie-executable" || \
-        "$type" == "application/x-sharedlib" || \
-        "$type" == "application/x-object" ]]; then
-    cmd_e readelf -a "$file"
-
-# Text
-elif [ "${type:0:4}" == "text" ]; then
-    if [[ "${file: -3}" == ".md" ]]; then
-        cmd_e glow --width $((FZF_PREVIEW_COLUMNS-1)) "$file"
-    elif command -v bat > /dev/null; then
-        bat --color always "$file"
-    else
-        cat "$file"
-    fi
-
-# Generic
+# File handling by type
 else
-    file "$file" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
+    type=$(file --dereference -b --mime-type "$file")
+
+    case "$type" in
+        # Images (and DJVU)
+        image/*)
+            if [[ "$type" != "image/vnd.djvu" ]]; then
+                if magick "$file" -auto-orient -resize x1080 "$tmp_img" 2> /dev/null; then
+                    img=$(cache_image "$tmp_img")
+                else
+                    img="$file"
+                fi
+            else
+                # DJVU
+                if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$file" "$tmp_img"; then
+                    img=$(cache_image "$tmp_img")
+                fi
+            fi
+            ;;
+
+        # Audio
+        audio/*)
+            if cmd_e ffmpeg -y -i "$file" -an -c:v copy "$tmp_img.jpg"; then
+                mv "$tmp_img.jpg" "$tmp_img"
+                img=$(cache_image "$tmp_img")
+            else
+                cmd_e exiftool "$file"
+            fi
+            ;;
+
+        # Video
+        video/*)
+            if cmd_e ffmpegthumbnailer -i "$file" -o "$tmp_img" -s 1080 -m; then
+                img=$(cache_image "$tmp_img")
+            fi
+            ;;
+
+        # PDF
+        application/pdf)
+            if cmd_e pdftoppm -singlefile -jpeg "$file" "$tmp_img"; then
+                mv "$tmp_img.jpg" "$tmp_img"
+                img=$(cache_image "$tmp_img")
+            fi
+            ;;
+
+        # Office documents
+        *officedocument.wordprocessingml.document*)
+            cmd_e docx2txt "$file" -
+            ;;
+
+        # OpenDocument text
+        *vnd.oasis.opendocument.text*)
+            cmd_e odt2txt "$file"
+            ;;
+
+        # Email
+        message/rfc822)
+            cmd_e mu view "$file"
+            ;;
+
+        # EPUB
+        *epub*)
+            if cmd_e epub-thumbnailer "$file" "$tmp_img" "1080"; then
+                img=$(cache_image "$tmp_img")
+            fi
+            ;;
+
+        # Compressed files
+        application/zip)
+            cmd_e unzip -l "$file"
+            ;;
+        application/gzip)
+            cmd_e zcat "$file"
+            ;;
+        application/x-bzip2)
+            cmd_e bzcat "$file"
+            ;;
+        application/x-xz)
+            cmd_e xzcat "$file"
+            ;;
+
+        # Binaries
+        application/x-executable|application/x-pie-executable|application/x-sharedlib|application/x-object)
+            cmd_e readelf -a "$file"
+            ;;
+
+        # Text files
+        text/*)
+            if [[ "${file: -3}" == ".md" ]]; then
+                cmd_e glow --width $((FZF_PREVIEW_COLUMNS-1)) "$file"
+            elif command -v bat > /dev/null; then
+                bat --color always "$file"
+            else
+                cat "$file"
+            fi
+            ;;
+
+        # Generic fallback
+        *)
+            file "$file" | fold -sw $((FZF_PREVIEW_COLUMNS-1))
+            ;;
+    esac
 fi
 
 # Definitions of preview methods
@@ -147,8 +177,10 @@ kitty_preview () {
     --scale-up --place="$((FZF_PREVIEW_COLUMNS))x$((FZF_PREVIEW_LINES))@0x0" "$1"
 }
 
-ueberzug_preview () {
-    echo '{"action": "add", "identifier": "fzf", "x": '$FZF_PREVIEW_LEFT', "y": '$FZF_PREVIEW_TOP', "max_width": '$FZF_PREVIEW_COLUMNS', "max_height": '$FZF_PREVIEW_LINES', "path": '"\"$1\""'}' >> "$tmp_ueberzug_fifo"
+ueberzug_preview() {
+	cat <<-EOF >> "$tmp_ueberzug_fifo"
+	{"action": "add", "identifier": "fzf", "x": $FZF_PREVIEW_LEFT, "y": $FZF_PREVIEW_TOP, "max_width": $FZF_PREVIEW_COLUMNS, "max_height": $FZF_PREVIEW_LINES, "path": "$1"}
+EOF
 }
 
 chafa_preview () {
