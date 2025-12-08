@@ -46,11 +46,6 @@ cleanup () {
 }
 trap cleanup HUP INT TERM QUIT EXIT
 
-# Set fzf to use fd if available (.fdignore support)
-if command -v fd >/dev/null; then
-    export FZF_DEFAULT_COMMAND='fd -H --type file'
-fi
-
 # Choose file opener
 opener=""
 for cmd in rifle open xdg-open; do
@@ -60,12 +55,22 @@ for cmd in rifle open xdg-open; do
     fi
 done
 
+export FZF_ALTERNATE_COMMAND='find -type d'
+
+# Set fzf to use fd if available (.fdignore support)
+if command -v fd >/dev/null; then
+    export FZF_DEFAULT_COMMAND='fd -H --type file'
+    export FZF_ALTERNATE_COMMAND='fd -H --type directory'
+fi
+
 # Set fzf default options (preview cmd, refresh on terminal resize, header, multi-bind to opener)
 export FZF_DEFAULT_OPTS=$(
 cat <<EOF
 --preview '$(dirname "$0")/fzf-file2preview.sh {} "$image_preview" "$cache_dir" "$tmp_img" "$tmp_ueberzug_fifo"'
 --bind 'resize:refresh-preview'
 --bind 'focus:transform-header:file --brief {}'
+--bind 'left:reload($FZF_DEFAULT_COMMAND)'
+--bind 'right:reload($FZF_ALTERNATE_COMMAND)'
 --multi $opener
 EOF
 )
