@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-tmp_img=$(mktemp /tmp/fzf-preview.XXXXXXXXXX)
+rand=$(mktemp -u XXXXXXXXXX)
+fzf_cmd_file="/tmp/fzf-cmd.${rand}"
+tmp_img="/tmp/fzf-preview.${rand}"
 tmp_ueberzug_fifo=""
 
 # Choose image previewer
 if command -v ueberzug >/dev/null; then
     image_preview="ueberzug_preview"
-    # Initialize ueberzug (listen to /tmp/fzf-ueberzug.XXXXXXXXXX)
-    tmp_ueberzug_fifo=$(mktemp /tmp/fzf-ueberzug.XXXXXXXXXX)
+    # Initialize ueberzug (listen to "/tmp/fzf-ueberzug.${rand}")
+    tmp_ueberzug_fifo="/tmp/fzf-ueberzug.${rand}"
     rm -f "$tmp_ueberzug_fifo"
     mkfifo "$tmp_ueberzug_fifo"
     if command -v ueberzugpp >/dev/null; then
@@ -41,8 +43,7 @@ cleanup () {
     # Clean up old cache files
     ls -1t "$cache_dir" | tail -n +201 | xargs -I {} rm "${cache_dir}/{}"
     # Remove temporary files
-    [[ -n "$tmp_img" ]] && rm -f "$tmp_img"
-    [[ -n "$tmp_ueberzug_fifo" ]] && rm -f "$tmp_ueberzug_fifo"
+    rm -f "$fzf_cmd_file" "$tmp_img" "$tmp_ueberzug_fifo"
 }
 trap cleanup HUP INT TERM QUIT EXIT
 
@@ -55,13 +56,14 @@ for cmd in rifle open xdg-open; do
     fi
 done
 
+# Define fzf commands
+export FZF_DEFAULT_COMMAND='find -type f'
 export FZF_ALTERNATE_COMMAND='find -type d'
-
-# Set fzf to use fd if available (.fdignore support)
-if command -v fd >/dev/null; then
+if command -v fd >/dev/null; then  # Use fd if available (.fdignore support)
     export FZF_DEFAULT_COMMAND='fd -H --type file'
     export FZF_ALTERNATE_COMMAND='fd -H --type directory'
 fi
+echo "$FZF_DEFAULT_COMMAND" > "$fzf_cmd_file"
 
 # Set fzf default options (preview cmd, refresh on terminal resize, header, multi-bind to opener)
 export FZF_DEFAULT_OPTS=$(
@@ -69,8 +71,15 @@ cat <<EOF
 --preview '$(dirname "$0")/fzf-file2preview.sh {} "$image_preview" "$cache_dir" "$tmp_img" "$tmp_ueberzug_fifo"'
 --bind 'resize:refresh-preview'
 --bind 'focus:transform-header:file --brief {}'
---bind 'left:reload($FZF_DEFAULT_COMMAND)'
---bind 'right:reload($FZF_ALTERNATE_COMMAND)'
+--bind '\`:reload(
+    # Toggle between file and directory search
+    if [ "\$(cat "$fzf_cmd_file")" = "$FZF_DEFAULT_COMMAND" ]; then
+        echo "$FZF_ALTERNATE_COMMAND" > "$fzf_cmd_file"
+    else
+        echo "$FZF_DEFAULT_COMMAND" > "$fzf_cmd_file"
+    fi
+    eval \$(cat "$fzf_cmd_file")
+)'
 --multi $opener
 EOF
 )

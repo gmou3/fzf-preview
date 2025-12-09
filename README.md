@@ -6,7 +6,7 @@ A terminal-based tool for searching and previewing files. Ideal for system-wide 
 # Usage
 Run the bash script `fzf-preview.sh`. This chooses an image viewer and calls `fzf` with preview script `fzf-file2preview.sh`.
 
-**Keys**: Use the `left` and `right` arrow keys to toggle between `file` and `directory` results. Press `Enter` to open the selection.
+**Keys**: Use the backtick (\`) to cycle through `file` and `directory` results. Press `Enter` to open the selection.
 
 # Dependencies
 `fzf` | [junegunn/fzf](https://github.com/junegunn/fzf)
