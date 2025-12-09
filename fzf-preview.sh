@@ -17,7 +17,7 @@ if command -v ueberzug >/dev/null; then
     else
         tail -f --pid=$$ "$tmp_ueberzug_fifo" 2>/dev/null | ueberzug layer --silent &
     fi
-elif [[ $KITTY_WINDOW_ID ]]; then
+elif [ -n "$KITTY_WINDOW_ID" ]; then
     image_preview="kitty_preview"
 elif command -v chafa >/dev/null; then
     image_preview="chafa_preview"
@@ -73,12 +73,12 @@ cat <<EOF
 --bind 'focus:transform-header:file --brief {}'
 --bind '\`:reload(
     # Toggle between file and directory search
-    if [ "\$(cat "$fzf_cmd_file")" = "$FZF_DEFAULT_COMMAND" ]; then
+    if grep -qxF "$FZF_DEFAULT_COMMAND" "$fzf_cmd_file"; then
         echo "$FZF_ALTERNATE_COMMAND" > "$fzf_cmd_file"
     else
         echo "$FZF_DEFAULT_COMMAND" > "$fzf_cmd_file"
     fi
-    eval \$(cat "$fzf_cmd_file")
+    . "$fzf_cmd_file"
 )'
 --multi $opener
 EOF

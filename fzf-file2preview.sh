@@ -117,7 +117,7 @@ else
     case "$type" in
         # Images (and DJVU)
         image/*)
-            if [[ "$type" != "image/vnd.djvu" ]]; then
+            if [ "$type" != "image/vnd.djvu" ]; then
                 if magick "$FILE" -auto-orient -resize x1080 "$TMP_IMG" 2> /dev/null; then
                     IMG=$(cache_image "$TMP_IMG")
                 else
@@ -214,7 +214,7 @@ else
 
         # Text files
         text/*)
-            if [[ "${file: -3}" == ".md" ]]; then
+            if [[ "${FILE: -3}" == ".md" ]]; then
                 cmd_e glow --width $((FZF_PREVIEW_COLUMNS - 1)) "$FILE"
             elif command -v bat > /dev/null; then
                 bat --color always "$FILE"
@@ -235,6 +235,6 @@ if [ -n "$IMG" ]; then
     $IMG_PREVIEW "$IMG"
 elif command -v ueberzug > /dev/null; then
     echo '{"action": "remove", "identifier": "fzf"}' >> "$UEBERZUG_FIFO"
-elif [[ $KITTY_WINDOW_ID ]]; then
+elif [ -n "$KITTY_WINDOW_ID" ]; then
     kitty icat --clear
 fi
