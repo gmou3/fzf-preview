@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
-rand=$(mktemp -u XXXXXXXXXX)
-fzf_cmd_file="/tmp/fzf-cmd.${rand}"
-tmp_img="/tmp/fzf-preview.${rand}"
+tmp_folder=$(mktemp -d /tmp/fzf-preview.XXXXXXXXXX)
+fzf_state_file="$tmp_folder/state"
+tmp_img="$tmp_folder/preview"
 tmp_ueberzug_fifo=""
 
 # Choose image previewer
 if command -v ueberzug >/dev/null; then
     image_preview="ueberzug_preview"
-    # Initialize ueberzug (listen to "/tmp/fzf-ueberzug.${rand}")
-    tmp_ueberzug_fifo="/tmp/fzf-ueberzug.${rand}"
+    # Initialize ueberzug (listen to a fifo)
+    tmp_ueberzug_fifo="$tmp_folder/ueberzug-fifo"
     rm -f "$tmp_ueberzug_fifo"
     mkfifo "$tmp_ueberzug_fifo"
     if command -v ueberzugpp >/dev/null; then
@@ -43,7 +43,7 @@ cleanup () {
     # Clean up old cache files
     ls -1t "$cache_dir" | tail -n +201 | xargs -I {} rm "${cache_dir}/{}"
     # Remove temporary files
-    rm -f "$fzf_cmd_file" "$tmp_img" "$tmp_ueberzug_fifo"
+    rm -rf "$tmp_folder"
 }
 trap cleanup HUP INT TERM QUIT EXIT
 
@@ -63,22 +63,23 @@ if command -v fd >/dev/null; then  # Use fd if available (.fdignore support)
     export FZF_DEFAULT_COMMAND='fd -H --type file'
     export FZF_ALTERNATE_COMMAND='fd -H --type directory'
 fi
-echo "$FZF_DEFAULT_COMMAND" > "$fzf_cmd_file"
+echo "file" > "$fzf_state_file"
 
 # Set fzf default options (preview cmd, refresh on terminal resize, header, multi-bind to opener)
 export FZF_DEFAULT_OPTS=$(
 cat <<EOF
 --preview '$(dirname "$0")/fzf-file2preview.sh {} "$image_preview" "$cache_dir" "$tmp_img" "$tmp_ueberzug_fifo"'
 --bind 'resize:refresh-preview'
---bind 'focus:transform-header:file --brief {}'
+--bind 'focus,load:transform-header:file --brief {}'
 --bind '\`:reload(
     # Toggle between file and directory search
-    if grep -qxF "$FZF_DEFAULT_COMMAND" "$fzf_cmd_file"; then
-        echo "$FZF_ALTERNATE_COMMAND" > "$fzf_cmd_file"
+    if grep -qxF "file" "$fzf_state_file"; then
+        echo "directory" > "$fzf_state_file"
+        $FZF_ALTERNATE_COMMAND
     else
-        echo "$FZF_DEFAULT_COMMAND" > "$fzf_cmd_file"
+        echo "file" > "$fzf_state_file"
+        $FZF_DEFAULT_COMMAND
     fi
-    . "$fzf_cmd_file"
 )'
 --multi $opener
 EOF
