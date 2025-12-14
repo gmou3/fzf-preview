@@ -233,7 +233,7 @@ fi
 # Show image
 if [ -n "$IMG" ]; then
     $IMG_PREVIEW "$IMG"
-elif command -v ueberzug > /dev/null; then
+elif [ -p "$UEBERZUG_FIFO" ]; then
     echo '{"action": "remove", "identifier": "fzf"}' >> "$UEBERZUG_FIFO"
 elif [ -n "$KITTY_WINDOW_ID" ]; then
     kitty icat --clear
