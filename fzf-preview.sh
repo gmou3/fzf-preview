@@ -80,7 +80,7 @@ cat <<EOF
         $FZF_DEFAULT_COMMAND
     fi
 )'
---multi --bind 'enter:become($opener {+})'
+--multi ${opener:+--bind 'enter:become($opener {+})'}
 EOF
 )
 
