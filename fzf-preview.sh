@@ -1,21 +1,17 @@
 #!/usr/bin/env bash
 
-TMP_FOLDER=$(mktemp -d /tmp/fzf-preview.XXXXXXXXXX)
-FZF_STATE_FILE="$TMP_FOLDER/state"
-TMP_IMG="$TMP_FOLDER/preview"
+TMP_DIR=$(mktemp -d /tmp/fzf-preview.XXXXXXXXXX)
+FZF_STATE_FILE="$TMP_DIR/state"
+TMP_IMG="$TMP_DIR/preview"
 UEBERZUG_FIFO=""
 
 # Choose image previewer
 if command -v ueberzug >/dev/null; then
     IMG_PREVIEW="ueberzug_preview"
     # Initialize ueberzug (listen to a fifo)
-    UEBERZUG_FIFO="$TMP_FOLDER/ueberzug-fifo"
+    UEBERZUG_FIFO="$TMP_DIR/ueberzug-fifo"
     mkfifo "$UEBERZUG_FIFO"
-    if command -v ueberzugpp >/dev/null; then
-        tail -f --pid=$$ "$UEBERZUG_FIFO" 2>/dev/null | ueberzugpp layer --silent &
-    else
-        tail -f --pid=$$ "$UEBERZUG_FIFO" 2>/dev/null | ueberzug layer --silent &
-    fi
+    tail -f --pid=$$ "$UEBERZUG_FIFO" 2>/dev/null | ueberzug layer --silent &
 elif [ -n "$KITTY_WINDOW_ID" ]; then
     IMG_PREVIEW="kitty_preview"
 elif command -v chafa >/dev/null; then
@@ -42,7 +38,7 @@ cleanup () {
     # Clean up old cache files
     ls -1t "$CACHE_DIR" | tail -n +201 | xargs -I {} rm "${CACHE_DIR}/{}"
     # Remove temporary files
-    rm -rf "$TMP_FOLDER"
+    rm -rf "$TMP_DIR"
 }
 trap cleanup HUP INT TERM QUIT EXIT
 

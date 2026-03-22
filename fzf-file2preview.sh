@@ -103,132 +103,128 @@ generic_preview () {
 }
 
 # Check cache for file
-if cached_img=$(get_cached_image); then
-    IMG="$cached_img"
+cached_img=$(get_cached_image) && { $IMG_PREVIEW "$cached_img"; exit; }
 
 # Directory
-elif [ -d "$FILE" ]; then
-    ls "$FILE"
+[ -d "$FILE" ] && { ls "$FILE"; exit; }
 
 # File handling by type
-else
-    type=$(file --dereference -b --mime-type "$FILE")
+type=$(file --dereference -b --mime-type "$FILE")
 
-    case "$type" in
-        # Images (and DJVU)
-        image/*)
-            if [ "$type" != "image/vnd.djvu" ]; then
-                if magick "$FILE" -auto-orient -resize x1080 "$TMP_IMG" 2> /dev/null; then
-                    IMG=$(cache_image "$TMP_IMG")
-                else
-                    IMG="$FILE"
-                fi
-            else
-                # DJVU
-                if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$FILE" "$TMP_IMG"; then
-                    IMG=$(cache_image "$TMP_IMG")
-                fi
-            fi
-            ;;
-
-        # Audio
-        audio/*)
-            if cmd_e ffmpeg -y -i "$FILE" -an -c:v copy "$TMP_IMG.jpg"; then
-                mv "$TMP_IMG.jpg" "$TMP_IMG"
+case "$type" in
+    # Images (and DJVU)
+    image/*)
+        if [ "$type" != "image/vnd.djvu" ]; then
+            if magick "$FILE" -auto-orient -resize x1080 "$TMP_IMG" 2> /dev/null; then
                 IMG=$(cache_image "$TMP_IMG")
             else
-                cmd_e exiftool "$FILE"
+                IMG="$FILE"
             fi
-            ;;
-
-        # Video
-        video/*)
-            if cmd_e ffmpegthumbnailer -i "$FILE" -o "$TMP_IMG" -s 1080 -m; then
+        else
+            # DJVU
+            if cmd_e ddjvu -format=tiff -size=1920x1080 -page=1 "$FILE" "$TMP_IMG"; then
                 IMG=$(cache_image "$TMP_IMG")
             fi
-            ;;
+        fi
+        ;;
 
-        # PDF
-        application/pdf)
-            if cmd_e pdftoppm -singlefile -jpeg "$FILE" "$TMP_IMG"; then
-                mv "$TMP_IMG.jpg" "$TMP_IMG"
-                IMG=$(cache_image "$TMP_IMG")
-            fi
-            ;;
+    # Audio
+    audio/*)
+        if cmd_e ffmpeg -y -i "$FILE" -an -c:v copy "$TMP_IMG.jpg"; then
+            mv "$TMP_IMG.jpg" "$TMP_IMG"
+            IMG=$(cache_image "$TMP_IMG")
+        else
+            cmd_e exiftool "$FILE"
+        fi
+        ;;
 
-        # Office documents
-        *officedocument.wordprocessingml.document*)
-            cmd_e docx2txt "$FILE" -
-            ;;
+    # Video
+    video/*)
+        if cmd_e ffmpegthumbnailer -i "$FILE" -o "$TMP_IMG" -s 1080 -m; then
+            IMG=$(cache_image "$TMP_IMG")
+        fi
+        ;;
 
-        # OpenDocument text
-        *vnd.oasis.opendocument.text*)
-            cmd_e odt2txt "$FILE"
-            ;;
+    # PDF
+    application/pdf)
+        if cmd_e pdftoppm -singlefile -jpeg "$FILE" "$TMP_IMG"; then
+            mv "$TMP_IMG.jpg" "$TMP_IMG"
+            IMG=$(cache_image "$TMP_IMG")
+        fi
+        ;;
 
-        # Email
-        message/rfc822)
-            cmd_e mu view "$FILE"
-            ;;
+    # Office documents
+    *officedocument.wordprocessingml.document*)
+        cmd_e docx2txt "$FILE" -
+        ;;
 
-        # EPUB
-        *epub*)
-            if cmd_e epub-thumbnailer "$FILE" "$TMP_IMG" "1080"; then
-                IMG=$(cache_image "$TMP_IMG")
-            fi
-            ;;
+    # OpenDocument text
+    *vnd.oasis.opendocument.text*)
+        cmd_e odt2txt "$FILE"
+        ;;
 
-        # Compressed files
-        application/zip)
-            generic_preview "$FILE"
-            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
-                cmd_e unzip -l "$FILE" && printf "\n"
-                cmd_e unzip -p "$FILE"
-            fi
-            ;;
-        application/gzip)
-            generic_preview "$FILE"
-            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
-                cmd_e zcat -l "$FILE" && printf "\n"
-                cmd_e zcat "$FILE"
-            fi
-            ;;
-        application/x-bzip2)
-            generic_preview "$FILE"
-            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
-                cmd_e bzcat "$FILE"
-            fi
-            ;;
-        application/x-xz)
-            generic_preview "$FILE"
-            if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
-                cmd_e xz -l "$FILE" && printf "\n"
-                cmd_e xzcat "$FILE"
-            fi
-            ;;
+    # Email
+    message/rfc822)
+        cmd_e mu view "$FILE"
+        ;;
 
-        # Binaries
-        application/x-executable|application/x-pie-executable|application/x-sharedlib|application/x-object)
-            cmd_e readelf -a "$FILE"
-            ;;
+    # EPUB
+    *epub*)
+        if cmd_e epub-thumbnailer "$FILE" "$TMP_IMG" "1080"; then
+            IMG=$(cache_image "$TMP_IMG")
+        fi
+        ;;
 
-        # Text files
-        text/*)
-            if [[ "${FILE: -3}" == ".md" ]]; then
-                cmd_e glow --width $((FZF_PREVIEW_COLUMNS - 1)) "$FILE"
-            elif command -v bat > /dev/null; then
-                bat --color always "$FILE"
-            else
-                cat "$FILE"
-            fi
-            ;;
+    # Compressed files
+    application/zip)
+        generic_preview "$FILE"
+        if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+            cmd_e unzip -l "$FILE" && printf "\n"
+            cmd_e unzip -p "$FILE"
+        fi
+        ;;
+    application/gzip)
+        generic_preview "$FILE"
+        if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+            cmd_e zcat -l "$FILE" && printf "\n"
+            cmd_e zcat "$FILE"
+        fi
+        ;;
+    application/x-bzip2)
+        generic_preview "$FILE"
+        if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+            cmd_e bzcat "$FILE"
+        fi
+        ;;
+    application/x-xz)
+        generic_preview "$FILE"
+        if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
+            cmd_e xz -l "$FILE" && printf "\n"
+            cmd_e xzcat "$FILE"
+        fi
+        ;;
 
-        # Generic fallback
-        *)
-            generic_preview "$FILE"
-            ;;
-    esac
-fi
+    # Binaries
+    application/x-executable|application/x-pie-executable|application/x-sharedlib|application/x-object)
+        cmd_e readelf -a "$FILE"
+        ;;
+
+    # Text files
+    text/*)
+        if [[ "${FILE: -3}" == ".md" ]]; then
+            cmd_e glow --width $((FZF_PREVIEW_COLUMNS - 1)) "$FILE"
+        elif command -v bat > /dev/null; then
+            bat --color always "$FILE"
+        else
+            cat "$FILE"
+        fi
+        ;;
+
+    # Generic fallback
+    *)
+        generic_preview "$FILE"
+        ;;
+esac
 
 # Show image
 if [ -n "$IMG" ]; then
