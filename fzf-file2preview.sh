@@ -232,5 +232,5 @@ if [ -n "$IMG" ]; then
 elif [ -p "$UEBERZUG_FIFO" ]; then
     echo '{"action": "remove", "identifier": "fzf"}' >> "$UEBERZUG_FIFO"
 elif [ -n "$KITTY_WINDOW_ID" ]; then
-    kitty icat --clear
+    kitty icat --clear --stdin=no --transfer-mode=memory
 fi
