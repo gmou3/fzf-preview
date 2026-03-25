@@ -19,7 +19,7 @@ elif command -v chafa >/dev/null; then
 elif command -v catimg >/dev/null; then
     IMG_PREVIEW="catimg_preview"
 else
-    IMG_PREVIEW="no_image_preview"
+    IMG_PREVIEW="generic_preview"  # no image
 fi
 
 # Cache directory setup
@@ -52,8 +52,8 @@ for cmd in rifle open xdg-open; do
 done
 
 # Define fzf commands
-export FZF_DEFAULT_COMMAND='find -type f'
-export FZF_ALTERNATE_COMMAND='find -type d'
+export FZF_DEFAULT_COMMAND='find . -type f'
+export FZF_ALTERNATE_COMMAND='find . -type d'
 if command -v fd >/dev/null; then  # Use fd if available (.fdignore support)
     export FZF_DEFAULT_COMMAND='fd -H --type file'
     export FZF_ALTERNATE_COMMAND='fd -H --type directory'
