@@ -105,14 +105,16 @@ generic_preview () {
 # Check cache for file
 cached_img=$(get_cached_image) && { $IMG_PREVIEW "$cached_img"; exit; }
 
-# Directory
-[ -d "$FILE" ] && { ls "$FILE"; exit; }
-
 # File handling by type
 type=$(file --dereference -b --mime-type "$FILE")
 
 case "$type" in
-    # Images (and DJVU)
+    # Directory
+    inode/directory)
+        ls "$FILE"
+        ;;
+
+    # Image (and DJVU)
     image/*)
         if [ "$type" != "image/vnd.djvu" ]; then
             if magick "$FILE" -auto-orient -resize x1080 "$TMP_IMG" 2> /dev/null; then
@@ -153,7 +155,7 @@ case "$type" in
         fi
         ;;
 
-    # Office documents
+    # Office document
     *officedocument.wordprocessingml.document*)
         cmd_e docx2txt "$FILE" -
         ;;
@@ -175,7 +177,7 @@ case "$type" in
         fi
         ;;
 
-    # Compressed files
+    # Compressed file
     application/zip)
         generic_preview "$FILE"
         if [ "$(get_file_size "$FILE")" -lt "$MAX_SIZE" ]; then
@@ -204,12 +206,12 @@ case "$type" in
         fi
         ;;
 
-    # Binaries
+    # Binary
     application/x-executable|application/x-pie-executable|application/x-sharedlib|application/x-object)
         cmd_e readelf -a "$FILE"
         ;;
 
-    # Text files
+    # Text file
     text/*)
         if [[ "${FILE: -3}" == ".md" ]]; then
             cmd_e glow --width $((FZF_PREVIEW_COLUMNS - 1)) "$FILE"
