@@ -63,6 +63,7 @@ echo "file" > "$FZF_STATE_FILE"
 # Set fzf default options (preview cmd, refresh on terminal resize, header, multi-bind to opener)
 export FZF_DEFAULT_OPTS=$(
 cat <<EOF
+--with-shell 'bash -c'
 --preview '$(dirname "$0")/fzf-file2preview.sh {} "$IMG_PREVIEW" "$CACHE_DIR" "$TMP_IMG" "$UEBERZUG_FIFO"'
 --bind 'resize:refresh-preview'
 --bind 'focus,load:transform-header:file --brief {}'
