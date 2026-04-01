@@ -9,21 +9,18 @@ Run the bash script `fzf-preview.sh`. This chooses an image viewer and calls `fz
 **Keys**: Use the backtick (\`) to cycle through `file` and `directory` results. Press `Enter` to open the selection.
 
 # Dependencies
-`fzf` | [junegunn/fzf](https://github.com/junegunn/fzf)
+- [fzf](https://github.com/junegunn/fzf)
 
 This is the only critical dependency. The rest expand functionality and can be
 added as needed.
 
 ## Image viewer
-`ueberzugpp` | [jstkdng/ueberzugpp](https://github.com/jstkdng/ueberzugpp) (suggested)
-
-| Alternatives |                                                                 |
-|--------------|-----------------------------------------------------------------|
-| `ueberzug`   | [ueber-devel/ueberzug](https://github.com/ueber-devel/ueberzug) |
-| `chafa`      | [hpjansson/chafa](https://github.com/hpjansson/chafa)           |
-| `catimg`     | [posva/catimg](https://github.com/posva/catimg)                 |
-
-Also works within a `kitty` terminal employing `kitty icat`.
+One of the following, given in fallback order:
+- [ueberzugpp](https://github.com/jstkdng/ueberzugpp) (suggested, esp. on X11)
+- [kitty](https://github.com/kovidgoyal/kitty) (works in `kitty`/`ghostty`
+  terminals, employing `kitten icat`)
+- [chafa](https://github.com/hpjansson/chafa)
+- [catimg](https://github.com/posva/catimg)
 
 ## File-to-preview converters
 

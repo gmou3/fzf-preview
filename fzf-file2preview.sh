@@ -70,7 +70,7 @@ cmd_e() {
 
 # Definitions of preview methods
 kitty_preview () {
-    kitty icat --clear --stdin=no --transfer-mode=memory --unicode-placeholder \
+    kitten icat --clear --stdin=no --transfer-mode=memory --unicode-placeholder \
     --scale-up --place="$((FZF_PREVIEW_COLUMNS))x$((FZF_PREVIEW_LINES))@0x0" "$1"
 }
 
@@ -231,8 +231,8 @@ esac
 # Show image
 if [ -n "$IMG" ]; then
     $IMG_PREVIEW "$IMG"
-elif [ -p "$UEBERZUG_FIFO" ]; then
+elif [[ "$IMG_PREVIEW" == "ueberzug_preview" ]]; then
     echo '{"action": "remove", "identifier": "fzf"}' >> "$UEBERZUG_FIFO"
-elif [ -n "$KITTY_WINDOW_ID" ]; then
-    kitty icat --clear --stdin=no --transfer-mode=memory
+elif [[ "$IMG_PREVIEW" == "kitty_preview" ]]; then
+    kitten icat --clear --stdin=no --transfer-mode=memory
 fi

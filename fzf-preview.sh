@@ -12,7 +12,8 @@ if command -v ueberzug >/dev/null; then
     UEBERZUG_FIFO="$TMP_DIR/ueberzug-fifo"
     mkfifo "$UEBERZUG_FIFO"
     tail -f --pid=$$ "$UEBERZUG_FIFO" 2>/dev/null | ueberzug layer --silent &
-elif [ -n "$KITTY_WINDOW_ID" ]; then
+elif command -v kitten >/dev/null && \
+     { [[ -n "$KITTY_WINDOW_ID" ]] || [[ "$TERM_PROGRAM" == "ghostty" ]]; }; then
     IMG_PREVIEW="kitty_preview"
 elif command -v chafa >/dev/null; then
     IMG_PREVIEW="chafa_preview"
